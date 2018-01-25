@@ -111,6 +111,7 @@ class ModelExtensionPaymentPaybear extends Model
         $url = sprintf('http://s.etherbill.io/v2/%s/payment/%s?token=%s', strtolower($token), urlencode($callbackUrl), $apiSecret);
         if ($response = file_get_contents($url)) {
             $response = json_decode($response);
+            $currencies = $this->getCurrencies();
 
             if (isset($response->data->address)) {
                 $fiatAmount = $order['total'];
@@ -121,6 +122,7 @@ class ModelExtensionPaymentPaybear extends Model
                 $data['address'] = $response->data->address;
                 $data['invoice'] = $response->data->invoice;
                 $data['amount'] = $coinsAmount;
+                $data['max_confirmations'] = $currencies[strtolower($token)]['maxConfirmations'];
 
                 if (isset($data['paybear_id'])) {
                     $this->updateData($data);

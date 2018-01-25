@@ -13,6 +13,7 @@ class ModelExtensionPaymentPaybear extends Model
                 `invoice` VARCHAR(256),
                 `amount` DECIMAL(20, 8),
                 `confirmations` INT(2) NULL DEFAULT NULL,
+                `max_confirmations` INT(2) NULL DEFAULT NULL,
                 `date_added` DATETIME NULL DEFAULT NULL,
                 `date_modified` DATETIME NULL DEFAULT NULL,
                 `payment_added` DATETIME NULL DEFAULT NULL,

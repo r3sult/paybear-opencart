@@ -63,8 +63,7 @@ class ControllerExtensionPaymentPaybear extends Controller
             $paybearData = $this->model_extension_payment_paybear->findByOrderId($order['order_id']);
 
             $params = json_decode($data);
-            $currencies = $this->model_extension_payment_paybear->getCurrencies();
-            $maxConfirmations = $currencies[$paybearData['token']]['maxConfirmations'];
+            $maxConfirmations = $paybearData['max_confirmations'];
             $invoice = $params->invoice;
             $this->model_extension_payment_paybear->updateData([
                 'paybear_id' => $paybearData['paybear_id'],
@@ -129,10 +128,10 @@ class ControllerExtensionPaymentPaybear extends Controller
         $order = $this->model_checkout_order->getOrder($this->request->get['order']);
         $paybearData = $this->model_extension_payment_paybear->findByOrderId($order['order_id']);
 
-        $minConfirmations = $this->config->get('payment_paybear_' . strtolower($paybearData['token']) . '_confirmations');
+        $maxConfirmations = $paybearData['max_confirmations'];
         $confirmations = $paybearData['confirmations'];
         $data = array();
-        if ($confirmations >= $minConfirmations) { //set max confirmations
+        if ($confirmations >= $maxConfirmations) { //set max confirmations
             $data['success'] = true;
         } else {
             $data['success'] = false;
