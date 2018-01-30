@@ -53,7 +53,7 @@ class ModelExtensionPaymentPaybear extends Model
     public function getCurrencies()
     {
         if (self::$currencies === null) {
-            $url = sprintf('http://s.etherbill.io/v2/currencies?token=%s', $this->config->get('payment_paybear_api_secret'));
+            $url = sprintf('https://api.paybear.io/v2/currencies?token=%s', $this->config->get('payment_paybear_api_secret'));
             $response = file_get_contents($url);
             $data = json_decode($response, true);
 
@@ -74,7 +74,7 @@ class ModelExtensionPaymentPaybear extends Model
     public function getRates()
     {
         if (empty(self::$rates)) {
-            $url = "http://s.etherbill.io/v2/exchange/usd/rate";
+            $url = "https://api.paybear.io/v2/exchange/usd/rate";
 
             if ($response = file_get_contents($url)) {
                 $response = json_decode($response);
@@ -110,7 +110,7 @@ class ModelExtensionPaymentPaybear extends Model
         $callbackUrl = $this->url->link('extension/payment/paybear/callback', ['order' => $orderId], true); //$this->context->link->getModuleLink('paybear', 'callback', array('order' => $orderId));
 
         // $url = sprintf('https://api.paybear.io/v1/%s/payment/%s/%s', strtolower($token), $payoutAddress, urlencode($callbackUrl));
-        $url = sprintf('http://s.etherbill.io/v2/%s/payment/%s?token=%s', strtolower($token), urlencode($callbackUrl), $apiSecret);
+        $url = sprintf('https://api.paybear.io/v2/%s/payment/%s?token=%s', strtolower($token), urlencode($callbackUrl), $apiSecret);
         if ($response = file_get_contents($url)) {
             $response = json_decode($response);
             $currencies = $this->getCurrencies();
