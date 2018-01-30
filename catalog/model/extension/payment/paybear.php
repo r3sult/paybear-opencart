@@ -31,6 +31,8 @@ class ModelExtensionPaymentPaybear extends Model
             $currencies = $this->getCurrencies();
             $currency = (object) $currencies[strtolower($token)];
             $currency->coinsValue = $coinsValue;
+            $formattedRate = number_format($currency->rate, 2, $this->language->get('decimal_point'), $this->language->get('thousand_point'));
+            $currency->rate = $formattedRate;
 
 
             if ($getAddress) {
