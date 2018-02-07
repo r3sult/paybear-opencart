@@ -19,8 +19,9 @@ class ControllerExtensionPaymentPaybear extends Controller
         ], true);
         $data['callbackUrl'] = $this->url->link('extension/payment/paybear/callback', '', true);
         $data['redirectUrl'] = $this->url->link('checkout/success', '', true);
-        $data['fiatValue'] = $order['total'];
+        $data['fiatValue'] = $this->currency->format($order['total'], $this->session->data['currency']);
         $data['currencyIso'] = $order['currency_code'];
+        $data['currencySign'] = $this->currency->getSymbolLeft($this->session->data['currency']) ? $this->currency->getSymbolLeft($this->session->data['currency']) : $this->currency->getSymbolRight($this->session->data['currency']);
         // $this->session->data['from_paybear'] = true;
 
         return $this->load->view('extension/payment/paybear', $data);
@@ -56,11 +57,29 @@ class ControllerExtensionPaymentPaybear extends Controller
         $this->load->model('checkout/order');
         $this->load->model('extension/payment/paybear');
 
+        if (empty($this->request->get['order']) || !$this->request->get['order']) {
+            die();
+        }
+
         $order = $this->model_checkout_order->getOrder($this->request->get['order']);
+
+        if (in_array($order['order_status_id'], array(
+            $this->config->get('payment_paybear_mispaid_status_id'),
+            $this->config->get('payment_paybear_late_payment_status_id'),
+            $this->config->get('payment_paybear_completed_status_id'),
+        ))) {
+            die();
+        }
+
         $data = file_get_contents('php://input');
+        $comment = '';
 
         if ($data) {
             $paybearData = $this->model_extension_payment_paybear->findByOrderId($order['order_id']);
+
+            if (!$paybearData) {
+                die();
+            }
 
             $params = json_decode($data);
             $maxConfirmations = $paybearData['max_confirmations'];
@@ -69,6 +88,7 @@ class ControllerExtensionPaymentPaybear extends Controller
                 'paybear_id' => $paybearData['paybear_id'],
                 'confirmations' => $params->confirmations
             ]);
+            $notify = false;
 
             $this->model_extension_payment_paybear->log(sprintf('PayBear: incoming callback. Confirmations - %d', $params->confirmations));
 
@@ -76,37 +96,42 @@ class ControllerExtensionPaymentPaybear extends Controller
                 $toPay = $paybearData['amount'];
                 $amountPaid = $params->inTransaction->amount / pow(10, $params->inTransaction->exp);
                 $rate = $this->model_extension_payment_paybear->getRate($params->blockchain);
-                $fiatPaid = $amountPaid * $rate;
                 $maxDifference = 0.00000001;
 
                 $this->model_extension_payment_paybear->log(sprintf('PayBear: to pay %s', $toPay));
                 $this->model_extension_payment_paybear->log(sprintf('PayBear: paid %s', $amountPaid));
                 $this->model_extension_payment_paybear->log(sprintf('PayBear: maxDifference %s', $maxDifference));
 
-                $orderStatus = $this->config->get('payment_paybear_failed_status_id');
+                $orderStatus = $this->config->get('payment_paybear_mispaid_status_id');
 
-                if ($toPay > 0 && ($toPay - $fiatPaid) < $maxDifference) {
+                if ($toPay > 0 && ($toPay - $amountPaid) < $maxDifference) {
                     $orderTimestamp = strtotime($order['date_added']);
                     $paymentTimestamp = strtotime($paybearData['payment_added']);
                     $deadline = $orderTimestamp + (int) $this->config->get('payment_paybear_exchange_rate_locktime') * 60;
                     $orderStatus = $this->config->get('payment_paybear_completed_status_id');
+                    $notify = true;
 
                     if ($paymentTimestamp > $deadline) {
                         $this->model_extension_payment_paybear->log('PayBear: late payment');
 
                         $fiatPaid = $amountPaid * $rate;
                         if ($order['total'] < $fiatPaid) {
-                            $orderStatus = $this->config->get('payment_paybear_failed_status_id');
+                            $orderStatus = $this->config->get('payment_paybear_late_payment_status_id');
                             $this->model_extension_payment_paybear->log('PayBear: rate changed');
+                            $comment = sprintf('Late Payment / Rate changed (%s %s paid, %s %s expected)', $fiatPaid, $order['currency_code'], $order['total'], $order['currency_code']);
+                            $notify = true;
                         } else {
                             $this->model_extension_payment_paybear->log(sprintf('PayBear: payment complete', $amountPaid));
                         }
                     }
                 } else {
                     $this->model_extension_payment_paybear->log(sprintf('PayBear: wrong amount %s', $amountPaid));
+                    $underpaid = round(($toPay-$amountPaid)*$rate, 2);
+                    $comment = sprintf('Wrong Amount Paid (%s %s received, %s %s expected) - %s %s underpaid', $amountPaid, $params->blockchain, $toPay, $params->blockchain, $order['currency_code'], $underpaid);
+                    $notify = true;
                 }
 
-                $this->model_checkout_order->addOrderHistory($order['order_id'], $orderStatus);
+                $this->model_checkout_order->addOrderHistory($order['order_id'], $orderStatus, $comment, $notify);
 
                 echo $invoice; //stop further callbacks
                 die();
@@ -127,6 +152,10 @@ class ControllerExtensionPaymentPaybear extends Controller
         $this->load->model('extension/payment/paybear');
         $order = $this->model_checkout_order->getOrder($this->request->get['order']);
         $paybearData = $this->model_extension_payment_paybear->findByOrderId($order['order_id']);
+
+        if (!$paybearData) {
+            die();
+        }
 
         $maxConfirmations = $paybearData['max_confirmations'];
         $confirmations = $paybearData['confirmations'];

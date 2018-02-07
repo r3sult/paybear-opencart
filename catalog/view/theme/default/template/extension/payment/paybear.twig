@@ -13,6 +13,7 @@
      data-redirect="{{ redirectUrl }}"
      data-fiat-value="{{ fiatValue }}"
      data-currency-iso="{{ currencyIso }}"
+     data-currency-sign="{{ currencySign }}"
 >
     <div class="p30 PayBear-spinner" style="display: none;">
         <p>Loading payment details...</p>
@@ -390,6 +391,7 @@
                 statusUrl: $container.data('status'),
                 redirectTo: $container.data('redirect'),
                 fiatCurrency: $container.data('currency-iso'),
+                fiatSign: $container.data('currency-sign'),
                 modal: true
             });
 
