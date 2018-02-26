@@ -7,7 +7,19 @@ class ControllerExtensionPaymentPaybear extends Controller
     public function index()
     {
         $this->load->model('setting/setting');
+        $this->load->model('extension/payment/paybear');
         $this->load->language('extension/payment/paybear');
+
+        $installedVersion = $this->config->get('payment_paybear_version');
+        if (!$installedVersion) {
+            $installedVersion = '0.2.0';
+        }
+        $currentVersion = $this->model_extension_payment_paybear->getVersion();
+
+        if (version_compare($currentVersion, $installedVersion) > 0) {
+            $this->model_extension_payment_paybear->upgrade($installedVersion);
+            $this->model_setting_setting->editSettingValue('payment_paybear', 'payment_paybear_version', $currentVersion);
+        }
 
         $this->document->setTitle($this->language->get('heading_title'));
 
@@ -24,6 +36,7 @@ class ControllerExtensionPaymentPaybear extends Controller
         $data['log_filename'] = 'paybear.log';
         $data['log_lines'] = $this->readLastLines(DIR_LOGS . $data['log_filename'], 500);
         $data['clear_log'] = str_replace('&amp;', '&', $this->url->link('extension/payment/paybear/clearlog', 'user_token=' . $this->session->data['user_token'], true));
+        $data['default_currency'] = $this->config->get('config_currency');
 
         if (isset($this->error['warning'])) {
             $data['error_warning'] = $this->error['warning'];
@@ -69,6 +82,9 @@ class ControllerExtensionPaymentPaybear extends Controller
             'payment_paybear_late_payment_status_id',
             'payment_paybear_status',
             'payment_paybear_debug',
+            'payment_paybear_max_underpayment',
+            'payment_paybear_min_overpayment',
+            'payment_paybear_version'
         );
 
         foreach ($fields as $field) {
@@ -98,43 +114,72 @@ class ControllerExtensionPaymentPaybear extends Controller
         $langs = $this->model_localisation_language->getLanguages();
 
         $defaultParams = [
+            'payment_paybear_version' => '0.3.0',
             'payment_paybear_status' => 1,
             'payment_paybear_title' => 'Crypto Payments (BTC/ETH/LTC and others)',
             'payment_paybear_exchange_rate_locktime' => 15,
+            'payment_paybear_max_underpayment' => 0.01,
+            'payment_paybear_min_overpayment' => 1,
         ];
 
+        $orderStatuses = $this->model_localisation_order_status->getOrderStatuses();
+        foreach ($orderStatuses as $status) {
+            if ($status['name'] == 'PayBear: Payment Accepted') {
+                $defaultParams['payment_paybear_completed_status_id'] = $status['order_status_id'];
+            }
+            if ($status['name'] == 'PayBear: Awaiting Confirmations') {
+                $defaultParams['payment_paybear_awaiting_confirmations_status_id'] = $status['order_status_id'];
+            }
+            if ($status['name'] == 'PayBear: Mispaid') {
+                $defaultParams['payment_paybear_mispaid_status_id'] = $status['order_status_id'];
+            }
+            if ($status['name'] == 'PayBear: Late Payment') {
+                $defaultParams['payment_paybear_late_payment_status_id'] = $status['order_status_id'];
+            }
+        }
+
+
         foreach ($langs as $lang) {
-            $this->model_localisation_order_status->addOrderStatus([
-                'order_status' => [
-                    $lang['language_id'] => ['name' => 'PayBear: Payment Accepted']
-                ]
-            ]);
+            if (!isset($defaultParams['payment_paybear_completed_status_id'])) {
+                $this->model_localisation_order_status->addOrderStatus([
+                    'order_status' => [
+                        $lang['language_id'] => ['name' => 'PayBear: Payment Accepted']
+                    ]
+                ]);
 
-            $defaultParams['payment_paybear_completed_status_id'] = $this->db->getLastId();
+                $defaultParams['payment_paybear_completed_status_id'] = $this->db->getLastId();
+            }
 
-            $this->model_localisation_order_status->addOrderStatus([
-                'order_status' => [
-                    $lang['language_id'] => ['name' => 'PayBear: Awaiting Confirmations']
-                ]
-            ]);
+            if (!isset($defaultParams['payment_paybear_awaiting_confirmations_status_id'])) {
+                $this->model_localisation_order_status->addOrderStatus([
+                    'order_status' => [
+                        $lang['language_id'] => ['name' => 'PayBear: Awaiting Confirmations']
+                    ]
+                ]);
 
-            $defaultParams['payment_paybear_awaiting_confirmations_status_id'] = $this->db->getLastId();
+                $defaultParams['payment_paybear_awaiting_confirmations_status_id'] = $this->db->getLastId();
+            }
 
-            $this->model_localisation_order_status->addOrderStatus([
-                'order_status' => [
-                    $lang['language_id'] => ['name' => 'PayBear: Mispaid']
-                ]
-            ]);
+            if (!isset($defaultParams['payment_paybear_mispaid_status_id'])) {
+                $this->model_localisation_order_status->addOrderStatus([
+                    'order_status' => [
+                        $lang['language_id'] => ['name' => 'PayBear: Mispaid']
+                    ]
+                ]);
 
-            $defaultParams['payment_paybear_mispaid_status_id'] = $this->db->getLastId();
+                $defaultParams['payment_paybear_mispaid_status_id'] = $this->db->getLastId();
+            }
 
-            $this->model_localisation_order_status->addOrderStatus([
-                'order_status' => [
-                    $lang['language_id'] => ['name' => 'PayBear: Late Payment']
-                ]
-            ]);
+            if (!isset($defaultParams['payment_paybear_late_payment_status_id'])) {
+                $this->model_localisation_order_status->addOrderStatus([
+                    'order_status' => [
+                        $lang['language_id'] => ['name' => 'PayBear: Late Payment']
+                    ]
+                ]);
 
-            $defaultParams['payment_paybear_late_payment_status_id'] = $this->db->getLastId();
+                $defaultParams['payment_paybear_late_payment_status_id'] = $this->db->getLastId();
+            }
+
             break;
         }
 

@@ -35,6 +35,7 @@
             </div>
             <div class="panel-body">
                 <form action="{{ action }}" method="post" enctype="multipart/form-data" id="form-payment" class="form-horizontal">
+                    <input type="hidden" name="payment_paybear_version" value="{{ payment_paybear_version }}">
                     <ul class="nav nav-tabs">
                         <li class="active"><a href="#tab-general" data-toggle="tab">{{ tab_general }}</a></li>
                         {#<li><a href="#tab-crypto-currencies" data-toggle="tab">{{ tab_crypto_currencies }}</a></li>#}
@@ -44,8 +45,8 @@
                     <div class="tab-content">
                         <div class="tab-pane active" id="tab-general">
                             <div class="form-group">
-                                <label class="col-sm-2 control-label" for="input-status">{{ entry_status }}</label>
-                                <div class="col-sm-10">
+                                <label class="col-sm-3 control-label" for="input-status">{{ entry_status }}</label>
+                                <div class="col-sm-9">
                                     <select name="payment_paybear_status" id="input-status" class="form-control">
                                         {% if payment_paybear_status %}
                                             <option value="1" selected="selected">{{ text_enabled }}</option>
@@ -58,10 +59,10 @@
                                 </div>
                             </div>
                             <div class="form-group">
-                                <label class="col-sm-2 control-label" for="input-debug">
+                                <label class="col-sm-3 control-label" for="input-debug">
                                     <span data-toggle="tooltip" title="{{ help_debug }}">{{ entry_debug }}</span>
                                 </label>
-                                <div class="col-sm-10">
+                                <div class="col-sm-9">
                                     <select name="payment_paybear_debug" id="input-debug" class="form-control">
                                         {% if payment_paybear_debug %}
                                             <option value="1" selected="selected">{{ text_enabled }}</option>
@@ -74,61 +75,88 @@
                                 </div>
                             </div>
                             <div class="form-group">
-                                <label for="" class="col-sm-2 control-label">
+                                <label for="" class="col-sm-3 control-label">
                                     Title
                                 </label>
-                                <div class="col-sm-10">
+                                <div class="col-sm-9">
                                     <input type="text"
                                            name="payment_paybear_title"
                                            value="{{ payment_paybear_title }}" class="form-control"/>
                                 </div>
                             </div>
                             <div class="form-group">
-                                <label for="" class="col-sm-2 control-label">
+                                <label for="" class="col-sm-3 control-label">
                                     Description
                                 </label>
-                                <div class="col-sm-10">
+                                <div class="col-sm-9">
                                     <textarea name="payment_paybear_description" class="form-control">{{ payment_paybear_description }}</textarea>
                                 </div>
                             </div>
                             <div class="form-group">
-                                <label for="" class="col-sm-2 control-label">
+                                <label for="" class="col-sm-3 control-label">
                                     API Key (Secret)
                                 </label>
-                                <div class="col-sm-10">
+                                <div class="col-sm-9">
                                     <input type="text"
                                            name="payment_paybear_api_secret"
                                            value="{{ payment_paybear_api_secret }}" class="form-control"/>
                                 </div>
                             </div>
                             <div class="form-group">
-                                <label for="" class="col-sm-2 control-label">
+                                <label for="" class="col-sm-3 control-label">
                                     API Key (Public)
                                 </label>
-                                <div class="col-sm-10">
+                                <div class="col-sm-9">
                                     <input type="text"
                                            name="payment_paybear_api_public"
                                            value="{{ payment_paybear_api_public }}" class="form-control"/>
                                 </div>
                             </div>
                             <div class="form-group">
-                                <label for="" class="col-sm-2 control-label">
+                                <label for="" class="col-sm-3 control-label">
                                     Exchange Rate Lock Time
                                 </label>
-                                <div class="col-sm-10">
+                                <div class="col-sm-9">
                                     <input type="text"
                                            name="payment_paybear_exchange_rate_locktime"
                                            value="{{ payment_paybear_exchange_rate_locktime }}" class="form-control"/>
                                 </div>
                             </div>
+
+                            <div class="form-group">
+                                <label for="" class="col-sm-3 control-label">
+                                    <span data-toggle="tooltip" title="{{ help_underpayment }}">
+                                        Max Underpayment ({{ default_currency }})
+                                    </span>
+                                </label>
+                                <div class="col-sm-9">
+                                    <input type="text"
+                                           name="payment_paybear_max_underpayment"
+                                           value="{{ payment_paybear_max_underpayment}}" class="form-control"/>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="" class="col-sm-3 control-label">
+                                    <span data-toggle="tooltip" title="{{ help_overpayment }}">
+                                        Min Overpayment ({{ default_currency }})
+                                    </span>
+                                </label>
+                                <div class="col-sm-9">
+                                    <input type="text"
+                                           name="payment_paybear_min_overpayment"
+                                           value="{{ payment_paybear_min_overpayment}}" class="form-control"/>
+                                </div>
+                            </div>
+
                         </div>
 
                         <div class="tab-pane" id="tab-status">
                             <div class="form-group">
-                                <label class="col-sm-2 control-label" for="input-completed-status">
+                                <label class="col-sm-3 control-label" for="input-completed-status">
                                     {{ entry_completed_status }}
                                 </label>
-                                <div class="col-sm-10">
+                                <div class="col-sm-9">
                                     <select name="payment_paybear_completed_status_id" id="input-completed-status" class="form-control">
                                         {% for order_status in order_statuses %}
                                             {% if order_status.order_status_id == payment_paybear_completed_status_id %}
@@ -162,9 +190,9 @@
                                 {#</div>#}
                             {#</div>#}
                             <div class="form-group">
-                                <label class="col-sm-2 control-label"
+                                <label class="col-sm-3 control-label"
                                        for="input-pending-status">{{ entry_pending_status }}</label>
-                                <div class="col-sm-10">
+                                <div class="col-sm-9">
                                     <select name="payment_paybear_pending_status_id" id="input-pending-status"
                                             class="form-control">
                                         {% for order_status in order_statuses %}
@@ -180,9 +208,9 @@
                             </div>
 
                             <div class="form-group">
-                                <label class="col-sm-2 control-label"
+                                <label class="col-sm-3 control-label"
                                        for="input-awaiting-status">{{ entry_awaiting_confirmations_status }}</label>
-                                <div class="col-sm-10">
+                                <div class="col-sm-9">
                                     <select name="payment_paybear_awaiting_confirmations_status_id" id="input-pending-status"
                                             class="form-control">
                                         {% for order_status in order_statuses %}
@@ -198,10 +226,10 @@
                             </div>
 
                             <div class="form-group">
-                                <label class="col-sm-2 control-label" for="input-awaiting-status">
+                                <label class="col-sm-3 control-label" for="input-awaiting-status">
                                     {{ entry_mispaid_status }}
                                 </label>
-                                <div class="col-sm-10">
+                                <div class="col-sm-9">
                                     <select name="payment_paybear_mispaid_status_id" id="input-mispaid-status"
                                             class="form-control">
                                         {% for order_status in order_statuses %}
@@ -220,10 +248,10 @@
                             </div>
 
                             <div class="form-group">
-                                <label class="col-sm-2 control-label" for="input-awaiting-status">
+                                <label class="col-sm-3 control-label" for="input-awaiting-status">
                                     {{ entry_late_payment_status }}
                                 </label>
-                                <div class="col-sm-10">
+                                <div class="col-sm-9">
                                     <select name="payment_paybear_late_payment_status_id" id="input-late-payment-status"
                                             class="form-control">
                                         {% for order_status in order_statuses %}
@@ -243,14 +271,16 @@
                         </div>
                         <div class="tab-pane" id="tab-log">
                             <div class="form-group">
-                                <label class="col-sm-2 control-label" for="input-log">{{ entry_log }}</label>
-                                <div class="col-sm-8">
+                                <label class="col-sm-3 control-label" for="input-log">{{ entry_log }}</label>
+                                <div class="col-sm-6">
                                     <input type="text" readonly="true" name="paybear_log_filename"
                                            value="{{ log_filename }}" class="form-control"/>
                                 </div>
-                                <div class="col-sm-2">
-                                    <a class="btn btn-danger" id="button-clear"><i
-                                                class="fa fa-eraser"></i> {{ button_clear }}</a>
+                                <div class="col-sm-3">
+                                    <a class="btn btn-danger" id="button-clear">
+                                        <i class="fa fa-eraser"></i>
+                                        {{ button_clear }}
+                                    </a>
                                 </div>
                             </div>
                             <div class="form-group">

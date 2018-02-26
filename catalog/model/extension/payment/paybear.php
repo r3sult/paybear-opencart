@@ -6,6 +6,8 @@ class ModelExtensionPaymentPaybear extends Model
 
     public static $currencies = null;
 
+    public static $baseUrl = 'https://api.paybear.io/v2';
+
     public function getMethod($address, $total)
     {
         $methodData = array(
@@ -31,9 +33,7 @@ class ModelExtensionPaymentPaybear extends Model
             $currencies = $this->getCurrencies();
             $currency = (object) $currencies[strtolower($token)];
             $currency->coinsValue = $coinsValue;
-            // $formattedRate = number_format($currency->rate, 2, $this->language->get('decimal_point'), $this->language->get('thousand_point'));
-            // $currency->rate = $formattedRate;
-
+            $currency->rate = round($this->getRate($currency->code), 2);
 
             if ($getAddress) {
                 $currency->address = $this->getAddress($orderId, $token);
@@ -53,7 +53,7 @@ class ModelExtensionPaymentPaybear extends Model
     public function getCurrencies()
     {
         if (self::$currencies === null) {
-            $url = sprintf('https://api.paybear.io/v2/currencies?token=%s', $this->config->get('payment_paybear_api_secret'));
+            $url = sprintf('%s/currencies?token=%s', self::$baseUrl, $this->config->get('payment_paybear_api_secret'));
             $response = file_get_contents($url);
             $data = json_decode($response, true);
 
@@ -74,17 +74,38 @@ class ModelExtensionPaymentPaybear extends Model
     public function getRates()
     {
         if (empty(self::$rates)) {
+            $needUpdate = false;
             $currency = $this->session->data['currency'];
             if (!$currency) {
-                $currency = 'USD';
+                $currency = 'usd';
             }
 
-            $url = sprintf("https://api.paybear.io/v2/exchange/%s/rate", strtolower($currency));
+            $ratesKey = sprintf('payment_paybear_%s_rates', strtolower($currency));
+            $ratesTimestampKey = sprintf('%s_timestamp', $ratesKey);
+            $ratesString = $this->config->get($ratesKey);
+            $ratesTimestamp = (int) $this->config->get($ratesTimestampKey);
 
-            if ($response = file_get_contents($url)) {
-                $response = json_decode($response);
-                if ($response->success) {
-                    self::$rates = $response->data;
+            if ($ratesString && $ratesTimestamp) {
+                $ratesDeadline = $ratesTimestamp + $this->config->get('payment_paybear_exchange_rate_locktime') * 60;
+                if ($ratesDeadline < time()) {
+                    $needUpdate = true;
+                }
+            }
+
+            if (!$needUpdate && !empty($ratesString)) {
+                self::$rates = json_decode($ratesString);
+            } else {
+                $url = sprintf("%s/exchange/%s/rate", self::$baseUrl, strtolower($currency));
+
+                if ($response = file_get_contents($url)) {
+                    $response = json_decode($response);
+                    if ($response->success) {
+                        $ratesData = [];
+                        $ratesData[$ratesKey] = json_encode($response->data);
+                        $ratesData[$ratesTimestampKey] = time();
+                        $this->editSettings($ratesData);
+                        self::$rates = $response->data;
+                    }
                 }
             }
         }
@@ -115,7 +136,7 @@ class ModelExtensionPaymentPaybear extends Model
         $callbackUrl = $this->url->link('extension/payment/paybear/callback', ['order' => $orderId], false); //$this->context->link-
         $callbackUrl = str_replace('&amp;', '&', $callbackUrl);
 
-        $url = sprintf('https://api.paybear.io/v2/%s/payment/%s?token=%s', strtolower($token), urlencode($callbackUrl), $apiSecret);
+        $url = sprintf('%s/%s/payment/%s?token=%s', self::$baseUrl, strtolower($token), urlencode($callbackUrl), $apiSecret);
         if ($response = file_get_contents($url)) {
             $response = json_decode($response);
             $currencies = $this->getCurrencies();
@@ -196,6 +217,38 @@ class ModelExtensionPaymentPaybear extends Model
             // $backtrace = debug_backtrace();
             // $log->write('Origin: ' . $backtrace[6]['class'] . '::' . $backtrace[6]['function']);
             $log->write(print_r($message, 1));
+        }
+    }
+
+    public function getPayments($orderId, $excludeHash = null)
+    {
+        $sql = "SELECT * FROM " . DB_PREFIX . "paybear_transaction WHERE order_id = " . (int) $orderId;
+        if ($excludeHash) {
+            $sql .= ' AND transaction_hash != "' . $excludeHash . '"';
+        }
+        $query = $this->db->query($sql);
+        $result = $query->rows;
+        $data = [];
+        foreach ($result as $row) {
+            $data[$row['transaction_hash']] = $row;
+        }
+
+        return $data;
+    }
+
+    public function editSettings($data, $store_id = 0) {
+        $query = $this->db->query("SELECT * FROM `" . DB_PREFIX . "setting` WHERE store_id = '" . (int)$store_id . "' AND `code` = 'payment_paybear' AND `key` IN ('" . implode("','", array_keys($data)) . "') ");
+        $exists = [];
+        foreach ($query->rows as $row) {
+            $exists[$row['key']] = $row;
+        }
+
+        foreach ($data as $key => $value) {
+            if (isset($exists[$key])) {
+                $this->db->query("UPDATE " . DB_PREFIX . "setting SET `value` = '" . $this->db->escape($value) . "', serialized = '0'  WHERE `code` = 'payment_paybear' AND `key` = '" . $this->db->escape($key) . "' AND store_id = '" . (int)$store_id . "'");
+            } else {
+                $this->db->query("INSERT INTO " . DB_PREFIX . "setting SET store_id = '" . (int)$store_id . "', `code` = 'payment_paybear', `key` = '" . $this->db->escape($key) . "', `value` = '" . $this->db->escape($value) . "'");
+            }
         }
     }
 

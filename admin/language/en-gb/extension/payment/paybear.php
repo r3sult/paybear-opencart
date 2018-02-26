@@ -38,6 +38,8 @@ $_['tab_crypto_currencies'] = 'Crypto Currencies';
 //$_['help_notify_customer_success']						 = 'Will send email with status update if payment success';
 $_['help_debug'] = 'Logs additional information to the payment log';
 $_['help_total'] = 'The checkout total the order must reach before this payment method becomes active';
+$_['help_underpayment'] = 'The client will be notified and required to pay the balance owed for underpayments greater than this specified amount';
+$_['help_overpayment'] = 'The client will be notified about their overpayment if it is greater than this amount. You will then need to issue the overpayment refund. ';
 
 // Error
 $_['error_permission'] = 'Warning: You do not have permission to modify payment PayBear!';
