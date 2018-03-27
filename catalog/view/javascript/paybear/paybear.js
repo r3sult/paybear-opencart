@@ -189,11 +189,13 @@
                             currencies = [response];
                         }
                         state.currencies  = currencies;
+
                         if (currencies.length > 1) {
                             fillCoins.call(that);
                         } else {
                             paymentStart.call(that);
                         }
+
                     } else {
                         handleCurrenciesError.call(that);
                     }
@@ -321,8 +323,6 @@
         var state = that.state;
         var options = that.options;
 
-        bindUnloadHandler.call(that);
-
         if (!that.state.currencies[that.state.selected].address) {
             handleCurrencyError.call(that);
             throw new Error(
@@ -330,9 +330,7 @@
             );
         }
 
-        if (options.unloadHandler) {
-            window.addEventListener('beforeunload', options.unloadHandler);
-        }
+        bindUnloadHandler.call(that);
 
         // clear payments start events
         var temp = document.createElement('div');
@@ -647,6 +645,8 @@
 
         if (!isConfirming) {
 
+            unbindUnloadHandler.call(that);
+
             that.topBackButton.style.display = 'none';
 
             that.paymentHeader.classList.remove('P-Payment__header--red');
@@ -694,6 +694,7 @@
             document.querySelector('.P-confirmations')
                 .innerHTML = 'Payment Detected. Waiting for ' + coinConfirmations +
                 (coinConfirmations === 1 ? ' Confirmation' : ' Confirmations');
+
             if (options.redirectPendingTo) {
                 paymentConfirming.querySelector('.P-btn').addEventListener('click', function (e) {
                     e.preventDefault();
@@ -1172,6 +1173,38 @@
             that.state.unloadBound = false;
             window.removeEventListener('beforeunload', options.unloadHandler);
         }
+    }
+
+    if (!Object.assign) {
+        Object.defineProperty(Object, 'assign', {
+            enumerable: false,
+            configurable: true,
+            writable: true,
+            value: function(target, firstSource) {
+                'use strict';
+                if (target === undefined || target === null) {
+                    throw new TypeError('Cannot convert first argument to object');
+                }
+
+                var to = Object(target);
+                for (var i = 1; i < arguments.length; i++) {
+                    var nextSource = arguments[i];
+                    if (nextSource === undefined || nextSource === null) {
+                        continue;
+                    }
+
+                    var keysArray = Object.keys(Object(nextSource));
+                    for (var nextIndex = 0, len = keysArray.length; nextIndex < len; nextIndex++) {
+                        var nextKey = keysArray[nextIndex];
+                        var desc = Object.getOwnPropertyDescriptor(nextSource, nextKey);
+                        if (desc !== undefined && desc.enumerable) {
+                            to[nextKey] = nextSource[nextKey];
+                        }
+                    }
+                }
+                return to;
+            }
+        });
     }
 
 }());
