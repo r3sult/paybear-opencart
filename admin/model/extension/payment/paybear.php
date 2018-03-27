@@ -2,7 +2,7 @@
 
 class ModelExtensionPaymentPaybear extends Model
 {
-    public $version = '0.3.0';
+    public $version = '0.4.0';
 
     public function getVersion()
     {

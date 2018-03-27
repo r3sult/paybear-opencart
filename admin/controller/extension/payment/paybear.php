@@ -114,9 +114,9 @@ class ControllerExtensionPaymentPaybear extends Controller
         $langs = $this->model_localisation_language->getLanguages();
 
         $defaultParams = [
-            'payment_paybear_version' => '0.3.0',
+            'payment_paybear_version' => '0.4.0',
             'payment_paybear_status' => 1,
-            'payment_paybear_title' => 'Crypto Payments (BTC/ETH/LTC and others)',
+            'payment_paybear_title' => 'Crypto via PayBear.io (BTC/ETH/LTC and more)',
             'payment_paybear_exchange_rate_locktime' => 15,
             'payment_paybear_max_underpayment' => 0.01,
             'payment_paybear_min_overpayment' => 1,

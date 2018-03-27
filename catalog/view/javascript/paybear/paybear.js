@@ -182,17 +182,18 @@
             } else {
                 try {
                     var response = JSON.parse(xhr.responseText);
-                    if (Array.isArray(response)) {
+                    if (Array.isArray(response) || response.title) {
                         handleCurrenciesSuccess();
                         var currencies = response;
+                        if (response.title) {
+                            currencies = [response];
+                        }
                         state.currencies  = currencies;
-
                         if (currencies.length > 1) {
                             fillCoins.call(that);
                         } else {
                             paymentStart.call(that);
                         }
-
                     } else {
                         handleCurrenciesError.call(that);
                     }
@@ -290,15 +291,7 @@
             state.paymentsHtml = document.querySelector('.P-box__inner').innerHTML;
         }
 
-        if (options.modal) {
-            that.topBackButton.removeAttribute('style');
-            that.topBackButton.removeEventListener('click', that.handleTopBackButton);
-            that.handleTopBackButton = function(event) {
-                event.preventDefault();
-                hideModal.call(that);
-            };
-            that.topBackButton.addEventListener('click', that.handleTopBackButton);
-        } else if (options.onBackClick) {
+        if (options.modal || options.onBackClick) {
             that.topBackButton.removeAttribute('style');
             that.topBackButton.removeEventListener('click', that.handleTopBackButton);
             that.handleTopBackButton = function(event) {
@@ -391,11 +384,6 @@
             state.interval = setInterval(function() {
                 var timer = options.timer - 1;
                 if (timer < 1) {
-                    that.paymentHeader.classList.add('P-Payment__header--red');
-                    that.paymentHeaderTitle.textContent = 'Payment Window Expired';
-                    that.paymentHeaderHelper.textContent = 'Rate Expired';
-                    that.paymentHeaderHelper.removeAttribute('style');
-
                     paymentExpired.call(that);
 
                 } else if (timer < 60) {
@@ -432,7 +420,7 @@
         if (options.enableFiatTotal && options.fiatValue) {
             document.querySelector('.P-Payment__value__price').removeAttribute('style');
             var fiatValue = coinsPaid > 0 ? Math.round(selectedCoin.rate * coinsToPay * 100) / 100 : options.fiatValue;
-            document.querySelector('.P-Payment__value__price').innerHTML = options.fiatSign + '<span>' + (fiatValue).toFixed(2) + '</span>&nbsp;' + options.fiatCurrency;
+            document.querySelector('.P-Payment__value__price').innerHTML = options.fiatSign + '<span>' + (+fiatValue).toFixed(2) + '</span>&nbsp;' + options.fiatCurrency;
         }
 
 
@@ -509,16 +497,17 @@
         // tabs
         paybearTabs.call(that);
 
-        checkStatusXHR(options.statusUrl);
+        var statusUrl = selectedCoin.statusUrl || options.statusUrl;
 
-        function checkStatusXHR(statusUrl) {
+        checkStatusXHR(statusUrl);
+
+        function checkStatusXHR(url) {
             state.checkStatusInterval = setInterval(function () {
                 var xhr = new XMLHttpRequest();
                 xhr.onload = function () {
                     if (xhr.status === 200) {
                         var response = JSON.parse(xhr.responseText);
-                        var checkConfirmations  = false;
-
+                        var checkConfirmations = false;
                         if (response.success) {
                             var overPaid = false;
                             var minOverpaymentCrypto = +(options.minOverpaymentFiat / selectedCoin.rate).toFixed(8);
@@ -527,7 +516,7 @@
                             }
                             paymentConfirmed.call(that, response.redirect_url, overPaid);
                         } else {
-                            if (response.coinsPaid !== null) {
+                            if (response.coinsPaid) {
                                 if (response.coinsPaid > coinsPaid) {
                                     var maxUnderpaymentCrypto = +(options.maxUnderpaymentFiat / selectedCoin.rate).toFixed(8);
                                     var diff = +(selectedCoin.coinsValue - coinsPaid - response.coinsPaid).toFixed(8);
@@ -557,7 +546,7 @@
                         }
                     }
                 };
-                xhr.open('GET', statusUrl, true);
+                xhr.open('GET', url, true);
                 xhr.setRequestHeader('Content-Type', 'application/json');
                 xhr.send();
             }, 10000);
@@ -599,6 +588,8 @@
 
         unbindUnloadHandler.call(that);
 
+        that.topBackButton.style.display = 'none';
+
         var state = that.state;
         clearInterval(state.interval);
         clearInterval(state.checkStatusInterval);
@@ -609,6 +600,14 @@
         unpaidScreen.style.display = 'none';
         that.paymentHeader.removeAttribute('style');
         paymentExpired.removeAttribute('style');
+
+        // header
+        options.timer = 0;
+        that.paymentHeaderTimer.textContent = formatTimer(options.timer);
+        that.paymentHeader.classList.add('P-Payment__header--red');
+        that.paymentHeaderTitle.textContent = 'Payment Window Expired';
+        that.paymentHeaderHelper.textContent = 'Rate Expired';
+        that.paymentHeaderHelper.removeAttribute('style');
 
         // helper
         var showPaymentHelper = paymentExpired.querySelector('.P-Payment__helper');
@@ -647,18 +646,8 @@
         var coinConfirmations = selectedCoin.maxConfirmations;
 
         if (!isConfirming) {
-            if (options.modal) {
-                that.topBackButton.removeAttribute('style');
-                that.topBackButton.removeEventListener('click', that.handleTopBackButton);
 
-                that.handleTopBackButton = function (event) {
-                    event.preventDefault();
-                    hideModal.call(that);
-                };
-                that.topBackButton.addEventListener('click', that.handleTopBackButton);
-            } else {
-                that.topBackButton.style.display = 'none';
-            }
+            that.topBackButton.style.display = 'none';
 
             that.paymentHeader.classList.remove('P-Payment__header--red');
             window.removeEventListener('resize', that.resizeListener, true);
@@ -685,13 +674,13 @@
                 var blockExplorer = state.currencies[state.selected].blockExplorer;
                 paymentConfirming.style.display = 'none';
                 paymentHelper.removeAttribute('style');
-                if (paymentHelper.clientHeight > document.querySelector('.P-box__inner').clientHeight) {
-                    paymentHelper.style.overflowY = 'scroll';
-                }
                 if (blockExplorer) {
                     var blockExplorerLink = blockExplorer.replace(/%s/g, selectedCoin.address);
                     paymentHelper.querySelector('.block-explorer-li').style.display = 'block';
                     paymentHelper.querySelector('.P-block-explorer').setAttribute('href', blockExplorerLink);
+                }
+                if (paymentHelper.clientHeight > document.querySelector('.P-box__inner').clientHeight) {
+                    paymentHelper.style.overflowY = 'scroll';
                 }
             });
             paymentHelperBtn.addEventListener('click', function () {
@@ -705,8 +694,16 @@
             document.querySelector('.P-confirmations')
                 .innerHTML = 'Payment Detected. Waiting for ' + coinConfirmations +
                 (coinConfirmations === 1 ? ' Confirmation' : ' Confirmations');
-
-            if (options.modal) {
+            if (options.redirectPendingTo) {
+                paymentConfirming.querySelector('.P-btn').addEventListener('click', function (e) {
+                    e.preventDefault();
+                    if (typeof options.redirectPendingTo === 'string') {
+                        window.location = options.redirectPendingTo;
+                        return false;
+                    }
+                    options.redirectPendingTo();
+                });
+            } else if (options.modal) {
                 paymentConfirming.querySelector('.P-btn').addEventListener('click', function (e) {
                     e.preventDefault();
                     hideModal.call(that);
@@ -744,43 +741,30 @@
         that.paymentHeader.style.display = 'none';
         document.querySelector('.P-Payment__header__check').style.display = 'block';
 
-        if (options.redirectTo && options.redirectTimeout) {
-            paymentConfirmed.querySelector('p').textContent = 'Redirecting you back in ' + options.redirectTimeout + ' seconds.';
-            paymentConfirmed.querySelector('.P-btn').setAttribute('href', options.redirectTo);
-            if (options.enableBack) {
-                that.topBackButton.removeEventListener('click', that.handleTopBackButton);
-                that.topBackButton.setAttribute('href', options.redirectTo);
-            }
-        } else if (options.redirectTo) {
-            paymentConfirmed.querySelector('p').style.display = 'none';
-            paymentConfirmed.querySelector('.P-btn').setAttribute('href', options.redirectTo);
-            if ((options.enableBack && options.onBackClick) || options.modal) {
-                that.topBackButton.removeEventListener('click', that.handleTopBackButton);
-                that.topBackButton.addEventListener('click', function (e) {
-                    e.preventDefault();
-                    paybearBack.call(that);
-                });
+        var paymentConfirmedText = paymentConfirmed.querySelector('p');
+        var paymentConfirmedBtn = paymentConfirmed.querySelector('.P-btn');
+        that.topBackButton.removeEventListener('click', that.handleTopBackButton);
+        that.topBackButton.style.display = 'none';
+        paymentConfirmedText.style.display = 'none';
+
+        if (options.redirectTo) {
+            paymentConfirmedBtn.setAttribute('href', options.redirectTo);
+            if (options.redirectTimeout) {
+                paymentConfirmedText.removeAttribute('style');
+                paymentConfirmedText.innerHTML = 'Redirecting you back in ' + options.redirectTimeout + ' seconds.';
             }
         } else {
-            paymentConfirmed.querySelector('p').style.display = 'none';
             if (options.modal) {
-                var btn = paymentConfirmed.querySelector('.P-btn');
                 var newBtn = document.createElement('button');
                 newBtn.innerHTML = '<i class="P-btn__icon--close"></i> Close';
                 newBtn.classList.value = 'P-btn P-btn--sm';
-                btn.parentNode.replaceChild(newBtn, btn);
+                paymentConfirmedBtn.parentNode.replaceChild(newBtn, paymentConfirmedBtn);
                 paymentConfirmed.querySelector('.P-btn').addEventListener('click', function (e) {
                     e.preventDefault();
                     hideModal.call(that);
                 });
-                that.topBackButton.removeEventListener('click', that.handleTopBackButton);
-                that.topBackButton.addEventListener('click', function (e) {
-                    e.preventDefault();
-                    hideModal.call(that);
-                });
             } else {
-                that.topBackButton.style.display = 'none';
-                paymentConfirmed.querySelector('.P-btn').style.display = 'none';
+                paymentConfirmedBtn.style.display = 'none';
             }
         }
 
@@ -789,13 +773,12 @@
             var overPaidImg = 'data:image/svg+xml;base64,PHN2ZyBoZWlnaHQ9IjI2MCIgdmlld0JveD0iMCAwIDI2MyAyNjAiIHdpZHRoPSIyNjMiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGcgZmlsbD0ibm9uZSI+PGVsbGlwc2UgY3g9IjEzMC4xOTgwMSIgY3k9IjEzMCIgZmlsbD0iI2VlY2Y3ZiIgcng9IjEzMC4xOTgwMSIgcnk9IjEzMCIvPjxwYXRoIGQ9Im0yNTQuMDAzMzIgODkuNzU3MmMtMy42ODcyMS0xMS4zMTc4LTguODc0My0yMS45NTE4LTE1LjM0NTE0LTMxLjY2OGwtMTEzLjk2NzU0IDExOC41MjM2LjIyOTE1IDEzLjE4OTggNS4zNzk3OC0uMDMzOHoiIGZpbGw9IiNjNGE3NWUiLz48cGF0aCBkPSJtMjYwLjU5Mzk0MSA1MS4xNzMyLTIzLjIxNjkxMS0yMi45MDM0Yy0zLjE2OTAyLTMuMTI3OC04LjMwOTIzOC0zLjEyNzgtMTEuNDc4MjU4IDBsLTk5LjI0NDc0MiAxMDIuMDcwOC00Mi43OTg2OTM0LTQyLjIyNGMtMy4xNzQyMjc3LTMuMTI3OC04LjMwOTIzNzYtMy4xMjc4LTExLjQ4MDg2MTQgMGwtMjAuNTc5MDk5IDIwLjMwMzRjLTMuMTY5MDE5OCAzLjEyNTItMy4xNjkwMTk4IDguMTk1MiAwIDExLjMyMDRsNjguNjg5ODcxOCA2Ny43NTg2YzEuODMwNTg0IDEuODA3IDQuMzEyMTU4IDIuNTM1IDYuNjk3Mzg2IDIuMjU0MiAyLjM4NTIyNy4yNzgyIDQuODY2ODAyLS40NDcyIDYuNjk3Mzg2LTIuMjU0MmwxMjYuNzEzOTIxLTEyNS4wMDI4YzMuMTY5MDE5LTMuMTI3OCAzLjE2OTAxOS04LjE5NTIgMC0xMS4zMjN6IiBmaWxsPSIjZjhmOGY4Ii8+PHBhdGggZD0ibTEzMy44ODAwMiAxODcuNDk5IDEyNi43MTM5MjEtMTI1LjAwMjhjMy4xNjkwMTktMy4xMjc4IDMuMTY5MDE5LTguMTk1MiAwLTExLjMyM2wtMy43ODg3NjMtMy43Mzg4LTEzMC4zNDY0NDUgMTI4LjAxMS03MS43ODU5ODA1LTY5Ljg2NzItMi44NzQ3NzIzIDIuODM5MmMtMy4xNjkwMTk4IDMuMTI1Mi0zLjE2OTAxOTggOC4xOTUyIDAgMTEuMzIwNGw2OC42ODcyNjc4IDY3Ljc2MTJjMS44MzA1ODQgMS44MDcgNC4zMTIxNTggMi41MzUgNi42OTczODYgMi4yNTQyIDIuMzg1MjI3LjI4MDggNC44NjY4MDItLjQ0NDYgNi42OTczODYtMi4yNTQyeiIgZmlsbD0iI2ViZWJlYiIvPjwvZz48L3N2Zz4=';
             document.querySelector('.P-Payment__confirmed__title').classList.add('P-Payment__confirmed__title--overpaid');
             paymentConfirmed.querySelector('.P-Content__icon img').setAttribute('src', overPaidImg);
-            paymentConfirmed.querySelector('.P-btn').className = 'P-btn';
-            paymentConfirmed.querySelector('.P-btn').innerHTML = 'Ok';
+            paymentConfirmedBtn.className = 'P-btn';
+            paymentConfirmedBtn.innerHTML = 'Ok';
             paymentConfirmed.querySelector('h2').innerHTML =
                 '<div><b>Whoops, you overpaid: ' + overPaid + '&nbsp;' + selectedCoin.code + '</b></div>';
-            var confirmedP = paymentConfirmed.querySelector('p');
-            confirmedP.innerHTML = 'To get your overpayment refunded, please contact the merchant directly and share your Order ID and ' + selectedCoin.code + ' address to send your refund to.';
-            confirmedP.removeAttribute('style');
+            paymentConfirmedText.removeAttribute('style');
+            paymentConfirmedText.innerHTML = 'To get your overpayment refunded, please contact the merchant directly and share your Order ID and ' + selectedCoin.code + ' address to send your refund to.';
 
         } else {
             if ((options.redirectTo && options.redirectTimeout) || redirect) {
