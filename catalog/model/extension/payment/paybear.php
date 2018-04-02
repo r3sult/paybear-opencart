@@ -22,6 +22,7 @@ class ModelExtensionPaymentPaybear extends Model
 
     public function getCurrency($token, $orderId, $getAddress = false)
     {
+        $token = $this->sanitizaToken($token);
         $rate = $this->getRate($token);
 
         if ($rate) {
@@ -115,6 +116,7 @@ class ModelExtensionPaymentPaybear extends Model
 
     public function getAddress($orderId, $token = 'ETH')
     {
+        $token = $this->sanitizaToken($token);
         $this->load->model('checkout/order');
         // $order =
         $data = $this->findByOrderId($orderId);
@@ -123,9 +125,11 @@ class ModelExtensionPaymentPaybear extends Model
 
         $rate = $this->getRate($token);
 
-        if ($data && strtolower($data['token']) == strtolower($token)) {
+        if ($data && $this->sanitizaToken($data['token']) === $token) {
             return $data['address'];
-        } elseif (!$data) {
+        }
+
+        if (!$data) {
             $data = [
                 'order_id' => (int) $orderId,
                 'token' => strtolower($token)
@@ -133,7 +137,7 @@ class ModelExtensionPaymentPaybear extends Model
         }
 
         $apiSecret = $this->config->get('payment_paybear_api_secret');
-        $callbackUrl = $this->url->link('extension/payment/paybear/callback', ['order' => $orderId], false); //$this->context->link-
+        $callbackUrl = $this->url->link('extension/payment/paybear/callback', ['order' => $orderId], false);
         $callbackUrl = str_replace('&amp;', '&', $callbackUrl);
 
         $url = sprintf('%s/%s/payment/%s?token=%s', self::$baseUrl, strtolower($token), urlencode($callbackUrl), $apiSecret);
@@ -218,6 +222,19 @@ class ModelExtensionPaymentPaybear extends Model
             // $log->write('Origin: ' . $backtrace[6]['class'] . '::' . $backtrace[6]['function']);
             $log->write(print_r($message, 1));
         }
+    }
+
+    /**
+     * @param string $token
+     *
+     * @return string
+     */
+    public function sanitizaToken($token)
+    {
+        $token = strtolower($token);
+        $token = preg_replace('/[^a-z0-9:]/', '', $token);
+
+        return $token;
     }
 
     public function getPayments($orderId, $excludeHash = null)
