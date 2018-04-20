@@ -25,6 +25,7 @@ class ControllerExtensionPaymentPaybear extends Controller
         $data['currencySign'] = $this->currency->getSymbolLeft($this->session->data['currency']) ? $this->currency->getSymbolLeft($this->session->data['currency']) : $this->currency->getSymbolRight($this->session->data['currency']);
         $data['maxUnderpaymentFiat'] = $this->config->get('payment_paybear_max_underpayment');
         $data['minOverpaymentFiat'] = $this->config->get('payment_paybear_min_overpayment');
+        $data['baseUrl'] = $this->config->get('config_url');
 
         return $this->load->view('extension/payment/paybear', $data);
     }

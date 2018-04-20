@@ -396,7 +396,7 @@
     </div>
 </div>
 
-<link rel="stylesheet" href="/catalog/view/theme/default/stylesheet/paybear.css">
+<link rel="stylesheet" href="{{ baseUrl }}catalog/view/theme/default/stylesheet/paybear.css">
 
 <script>
     $(function () {
@@ -408,7 +408,7 @@
             });
         }
 
-        $.getScript('/catalog/view/javascript/paybear/paybear.js', function () {
+        $.getScript('{{ baseUrl }}catalog/view/javascript/paybear/paybear.js', function () {
             window.paybearWidget = new Paybear({
                 button: '#paybear-all',
                 fiatValue: parseFloat($container.data('fiat-value')),
