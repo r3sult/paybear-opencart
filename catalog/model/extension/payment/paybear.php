@@ -55,7 +55,8 @@ class ModelExtensionPaymentPaybear extends Model
     {
         if (self::$currencies === null) {
             $url = sprintf('%s/currencies?token=%s', self::$baseUrl, $this->config->get('payment_paybear_api_secret'));
-            $response = file_get_contents($url);
+            //$response = file_get_contents($url);
+            $response = $this->url_get_contents($url);
             $data = json_decode($response, true);
 
             self::$currencies = $data['data'];
@@ -98,7 +99,8 @@ class ModelExtensionPaymentPaybear extends Model
             } else {
                 $url = sprintf("%s/exchange/%s/rate", self::$baseUrl, strtolower($currency));
 
-                if ($response = file_get_contents($url)) {
+                //if ($response = file_get_contents($url)) {
+                if ($response = $this->url_get_contents($url)) {
                     $response = json_decode($response);
                     if ($response->success) {
                         $ratesData = [];
@@ -141,7 +143,8 @@ class ModelExtensionPaymentPaybear extends Model
         $callbackUrl = str_replace('&amp;', '&', $callbackUrl);
 
         $url = sprintf('%s/%s/payment/%s?token=%s', self::$baseUrl, strtolower($token), urlencode($callbackUrl), $apiSecret);
-        if ($response = file_get_contents($url)) {
+        //if ($response = file_get_contents($url)) {
+        if ($response = $this->url_get_contents($url)) {
             $response = json_decode($response);
             $currencies = $this->getCurrencies();
 
@@ -267,6 +270,18 @@ class ModelExtensionPaymentPaybear extends Model
                 $this->db->query("INSERT INTO " . DB_PREFIX . "setting SET store_id = '" . (int)$store_id . "', `code` = 'payment_paybear', `key` = '" . $this->db->escape($key) . "', `value` = '" . $this->db->escape($value) . "'");
             }
         }
+    }
+
+    function url_get_contents ($Url) {
+        if (!function_exists('curl_init')){
+            die('CURL is not installed!');
+        }
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $Url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        $output = curl_exec($ch);
+        curl_close($ch);
+        return $output;
     }
 
 }

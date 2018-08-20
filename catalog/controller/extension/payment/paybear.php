@@ -87,7 +87,8 @@ class ControllerExtensionPaymentPaybear extends Controller
         }
 
         $order = $this->model_checkout_order->getOrder($this->request->get['order']);
-        $data = file_get_contents('php://input');
+        //$data = file_get_contents('php://input');
+        $data = $this->model_extension_payment_paybear->url_get_contents('php://input');
 
         if (empty($data) || empty($order)
             || (int) $this->config->get('payment_paybear_completed_status_id') === (int) $order['order_status_id']) {
